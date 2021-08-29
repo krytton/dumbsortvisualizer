@@ -20,6 +20,7 @@ ax.yaxis.set_visible(False)
 bars = ax.bar(np.arange(arrs) + 0.5, arr, 1, color="blue")
 
 # TODO: second array visualization
+# TODO: side data visualization
 
 fig.canvas.mpl_connect("close_event", quit)
 
@@ -32,6 +33,8 @@ fig.canvas.mpl_connect("close_event", quit)
 
 def swapinds(x, y, piv=None):
     global arr
+    if x < 0 or y < 0 or x >= arrs or y >= arrs:
+        raise IndexError
     arr[x], arr[y] = arr[y], arr[x]
     render(x, y, sw=True, piv=piv)
 
@@ -83,6 +86,16 @@ def sortedsweep():
         bars[s].set_color("blue")
         draw(dt/10)
     plt.pause(1)
+
+
+def networksort(pairs):  # base function for sorting networks; takes a list of 2-tuples as an argument
+    global arr
+    for i in pairs:
+        if arr[i[0]] > arr[i[1]]:
+            swapinds(i[0], i[1])
+        else:
+            render(i[0], i[1])
+    sortedsweep()
 
 
 # THE SORTS THEMSELVES
@@ -209,8 +222,8 @@ def heapsort():
     sortedsweep()
 
 
-def shellsort():
-    plt.xlabel("Shell Sort")
+def weirdshellsort():
+    plt.xlabel("Shell Sort but weird")
     global arr
     # TODO: figure out how any of this works
     gaps = [1750, 701, 301, 132, 57, 23, 10, 4, 1]  # Marcin Ciura's gap sequence, https://oeis.org/A102549
@@ -227,6 +240,32 @@ def shellsort():
                             break
                 else:
                     render(i, i + gap)
+    sortedsweep()
+
+
+def shellsort(gaplist="ciura"):
+    global arr
+
+    # TODO: redo this as a match-case statement when python 3.10 comes out
+    if gaplist == "2k":  # every power of two smaller than arrs
+        plt.xlabel("Shell Sort (Powers of 2)")
+        gaps = [2 ** k for k in reversed(range(arrs.bit_length() - 1))]
+    elif gaplist == "mersenne":  # mersenne numbers up to arrs
+        plt.xlabel("Shell Sort (Mersenne numbers)")
+        gaps = [2 ** k - 1 for k in reversed(range(1, arrs.bit_length() - 1))]
+    else:  # (default) Marcin Ciura's gap sequence, https://oeis.org/A102549
+        plt.xlabel("Shell Sort (Ciura's sequence)")
+        gaps = [1750, 701, 301, 132, 57, 23, 10, 4, 1]
+
+    for gap in gaps:  # each gap determines a modulo for congruence classes
+        if gap < arrs:
+            for i in range(gap, arrs):
+                for k in range(i, gap - 1, -gap):  # insert sort i into congruence class i mod gap
+                    if arr[k - gap] > arr[k]:
+                        swapinds(k - gap, k)
+                    else:
+                        render(k - gap, k)
+                        break
     sortedsweep()
 
 
@@ -256,6 +295,40 @@ def stoogesort(showrec=False):
     sortedsweep()
 
 
+def oddevenmerge():
+    plt.xlabel("Building list...")
+    render()
+    global arrs
+
+    def oems(i, j):
+        lenij = j - i + 1
+        if lenij == 2:
+            return [(i, j)]
+        pairs = []
+        if lenij > 2:
+            hw = (lenij - 1) // 2
+            pairs.extend(oems(i, i + hw))
+            pairs.extend(oems(j - hw, j))
+            rad = lenij // 2
+            for k in range(i, i + rad):
+                pairs.append((k, k + rad))
+            while rad > 1:
+                rad //= 2
+                start = i + rad
+                while start <= j - 2 * rad:
+                    for k in range(start, start + rad):
+                        pairs.append((k, k + rad))
+                    start += 2 * rad
+        return pairs
+
+    nw = oems(0, 2 ** arrs.bit_length())
+    for i in reversed(range(len(nw))):
+        if nw[i][0] >= arrs or nw[i][1] >= arrs:
+            nw.pop(i)
+    plt.xlabel("Odd-Even Merge")
+    networksort(nw)
+
+
 while True:
     bubblesort()
     optibubblesort()
@@ -263,4 +336,5 @@ while True:
     quicksort()
     heapsort()
     shellsort()
+    oddevenmerge()
     stoogesort()
